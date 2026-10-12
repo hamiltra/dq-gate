@@ -1,8 +1,8 @@
 # DQ Gate
 
-A GitLab CI/CD pipeline that runs dbt tests and Snowflake data quality checks, blocks a merge or deploy when testing coverage is missing, and records evidence in a ServiceNow change request.
+A GitHub Actions pipeline that runs dbt tests and Snowflake data quality checks, blocks a merge or deploy when testing coverage is missing, and records evidence in a ServiceNow change request.
 
-**Status:** M0-M1 scaffold (repo, tooling, merge-request pipeline with lint and tests). See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan, milestones and timeline.
+**Status:** M0-M1 scaffold (repo, tooling, pull-request pipeline with lint and tests). See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan, milestones and timeline.
 
 All data in this project is synthetic.
 
@@ -10,7 +10,7 @@ All data in this project is synthetic.
 
 ```mermaid
 flowchart LR
-    MR[Merge request] --> CI[GitLab CI pipeline]
+    PR[Pull request] --> CI[GitHub Actions pipeline]
     CI --> L[Lint + pytest]
     CI --> D[dbt build, changed models only]
     D --> SF[(Snowflake)]
@@ -33,7 +33,7 @@ Copy `.env.example` to `.env` for local credentials. Never commit `.env`.
 ## Repository layout
 
 ```
-.gitlab-ci.yml        merge-request pipeline
+.github/workflows/   CI pipeline (pull requests and main)
 src/dq_tools/         Python tooling (config, ServiceNow client, later: coverage gate, reporting)
 tests/                pytest unit tests
 dbt/                  dbt project (M3)
@@ -41,11 +41,13 @@ scripts/              utilities added in later milestones
 docs/                 project plan, AI workflow log
 ```
 
-## GitLab setup checklist (M1)
+## GitHub setup checklist (M1)
 
-1. Create the project and push `main`.
-2. Settings > Repository > Protected branches: protect `main`, no direct pushes.
-3. Settings > Merge requests: enable **Pipelines must succeed**.
-4. Optional: register a self-hosted runner and uncomment `tags:` in `.gitlab-ci.yml`.
-5. Open a merge request and confirm `lint` and `unit-tests` run.
-6. Break a test on purpose, confirm the merge is blocked, then fix it (screenshot for the README).
+1. Push `main` to GitHub (done if you can see the files).
+2. Settings > Rules > Rulesets > New branch ruleset, target `main`:
+   - Require a pull request before merging
+   - Require status checks to pass (add `lint` and `unit-tests` after their first run)
+   - Block force pushes
+3. Open a pull request and confirm `lint` and `unit-tests` run under Actions.
+4. Break a test on purpose, confirm the merge is blocked, then fix it (screenshot for the README).
+5. Optional: register a self-hosted runner (Settings > Actions > Runners). Do not let fork pull requests run on it if the repo is public.
