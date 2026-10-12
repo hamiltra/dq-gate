@@ -80,11 +80,11 @@ flowchart LR
 - [x] First commit pushed to GitHub
 
 ### M1: Pull-request pipeline with a gate (Week 1)
-- [ ] Workflow runs on a pull request with `lint` and `unit-tests` jobs
-- [ ] Test results and coverage artifacts uploaded by the workflow
-- [ ] Branch ruleset on `main`: pull request required, force pushes blocked
-- [ ] Ruleset requires the `lint` and `unit-tests` status checks to pass
-- [ ] Demonstrated: a failing test blocks the merge; a fix unblocks it (screenshot for README)
+- [x] Workflow runs on a pull request with `lint` and `unit-tests` jobs
+- [x] Test results and coverage artifacts uploaded by the workflow
+- [x] Branch ruleset on `main`: pull request required, force pushes blocked
+- [x] Ruleset requires the `lint` and `unit-tests` status checks to pass
+- [x] Demonstrated: a failing test blocks the merge; a fix unblocks it (screenshot for README)
 
 ### M2: ServiceNow API proof (Week 1)
 - [ ] Integration user created in the PDI with the roles needed for change management
