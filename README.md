@@ -51,3 +51,4 @@ docs/                 project plan, AI workflow log
 3. Open a pull request and confirm `lint` and `unit-tests` run under Actions.
 4. Break a test on purpose, confirm the merge is blocked, then fix it (screenshot for the README).
 5. Optional: register a self-hosted runner (Settings > Actions > Runners). Do not let fork pull requests run on it if the repo is public.
+
