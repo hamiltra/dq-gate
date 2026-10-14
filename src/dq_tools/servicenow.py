@@ -1,14 +1,23 @@
-"""ServiceNow client skeleton (milestone M2).
+"""ServiceNow REST client for change management.
 
-Only construction and URL handling are implemented so far. The change-management calls
-are stubbed with clear TODOs so M2 starts from a tested base.
+Implemented in M2: create a change request, add a work note, attach a file.
+Still to do in M6: read the change state for the deploy gate.
 """
 
 from __future__ import annotations
 
+import mimetypes
+from pathlib import Path
+
 import requests
 
 from dq_tools.config import ServiceNowSettings
+
+CHANGE_TABLE = "change_request"
+
+
+class ServiceNowError(RuntimeError):
+    """Raised when the ServiceNow API returns an error or an unexpected response."""
 
 
 class ServiceNowClient:
@@ -38,20 +47,75 @@ class ServiceNowClient:
         """Build a full API URL from a path like '/api/now/table/change_request'."""
         return f"{self.base_url}/{path.lstrip('/')}"
 
-    # --- M2: implement below -------------------------------------------------
+    def _request(self, method: str, path: str, **kwargs) -> dict:
+        """Send a request and return the 'result' object, or raise ServiceNowError.
 
-    def create_change_request(self, short_description: str, description: str = "") -> dict:
-        """TODO (M2): POST /api/now/table/change_request and return the created record."""
-        raise NotImplementedError("Implement in milestone M2")
+        Error messages include the status code and ServiceNow's error text, never the
+        credentials or request headers.
+        """
+        kwargs.setdefault("timeout", self.timeout)
+        try:
+            response = self.session.request(method, self.url(path), **kwargs)
+        except requests.RequestException as exc:
+            raise ServiceNowError(f"{method} {path} failed: {type(exc).__name__}") from exc
+
+        if not response.ok:
+            raise ServiceNowError(
+                f"{method} {path} returned {response.status_code}: {_error_text(response)}"
+            )
+        try:
+            return response.json()["result"]
+        except (ValueError, KeyError) as exc:
+            raise ServiceNowError(f"{method} {path} returned an unexpected response body") from exc
+
+    def create_change_request(
+        self,
+        short_description: str,
+        description: str = "",
+        change_type: str = "normal",
+    ) -> dict:
+        """Create a change request and return the created record (includes sys_id, number)."""
+        payload = {
+            "short_description": short_description,
+            "description": description,
+            "type": change_type,
+        }
+        return self._request("POST", f"/api/now/table/{CHANGE_TABLE}", json=payload)
 
     def add_work_note(self, sys_id: str, note: str) -> dict:
-        """TODO (M2): PATCH the change request with a work note."""
-        raise NotImplementedError("Implement in milestone M2")
+        """Append a work note to a change request and return the updated record."""
+        return self._request(
+            "PATCH",
+            f"/api/now/table/{CHANGE_TABLE}/{sys_id}",
+            json={"work_notes": note},
+        )
 
-    def attach_file(self, sys_id: str, file_path: str) -> dict:
-        """TODO (M2): POST /api/now/attachment/file?table_name=change_request&table_sys_id=..."""
-        raise NotImplementedError("Implement in milestone M2")
+    def attach_file(self, sys_id: str, file_path: str | Path) -> dict:
+        """Attach a local file to a change request and return the attachment record."""
+        path = Path(file_path)
+        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        with path.open("rb") as handle:
+            return self._request(
+                "POST",
+                "/api/now/attachment/file",
+                params={
+                    "table_name": CHANGE_TABLE,
+                    "table_sys_id": sys_id,
+                    "file_name": path.name,
+                },
+                data=handle,
+                headers={"Content-Type": content_type},
+            )
 
     def get_change_state(self, sys_id: str) -> str:
         """TODO (M6): read the change state, used by the deploy gate."""
         raise NotImplementedError("Implement in milestone M6")
+
+
+def _error_text(response: requests.Response) -> str:
+    """Pull a short message out of a ServiceNow error body, falling back to the status reason."""
+    try:
+        error = response.json().get("error", {})
+        return str(error.get("message") or error.get("detail") or response.reason)
+    except ValueError:
+        return str(response.reason)

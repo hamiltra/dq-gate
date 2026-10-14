@@ -1,10 +1,17 @@
-import pytest
+import json
 
-from dq_tools.servicenow import ServiceNowClient
+import pytest
+import requests
+import responses
+
+from dq_tools.servicenow import ServiceNowClient, ServiceNowError
+
+BASE = "https://dev12345.service-now.com"
+TABLE_URL = f"{BASE}/api/now/table/change_request"
 
 
 def make_client() -> ServiceNowClient:
-    return ServiceNowClient("https://dev12345.service-now.com/", "svc_dq", "secret")
+    return ServiceNowClient(f"{BASE}/", "svc_dq", "secret")
 
 
 def test_requires_https():
@@ -14,9 +21,8 @@ def test_requires_https():
 
 def test_url_building_handles_slashes():
     client = make_client()
-    expected = "https://dev12345.service-now.com/api/now/table/change_request"
-    assert client.url("/api/now/table/change_request") == expected
-    assert client.url("api/now/table/change_request") == expected
+    assert client.url("/api/now/table/change_request") == TABLE_URL
+    assert client.url("api/now/table/change_request") == TABLE_URL
 
 
 def test_session_uses_basic_auth_and_json_accept():
@@ -25,7 +31,97 @@ def test_session_uses_basic_auth_and_json_accept():
     assert client.session.headers["Accept"] == "application/json"
 
 
-def test_unimplemented_calls_fail_loudly_until_m2():
-    client = make_client()
+@responses.activate
+def test_create_change_request_posts_payload_and_returns_record():
+    responses.post(
+        TABLE_URL,
+        json={"result": {"sys_id": "abc123", "number": "CHG0030001"}},
+        status=201,
+    )
+
+    record = make_client().create_change_request("Deploy v1", "Release notes")
+
+    assert record["sys_id"] == "abc123"
+    assert record["number"] == "CHG0030001"
+    sent = json.loads(responses.calls[0].request.body)
+    assert sent == {
+        "short_description": "Deploy v1",
+        "description": "Release notes",
+        "type": "normal",
+    }
+
+
+@responses.activate
+def test_add_work_note_patches_work_notes_field():
+    responses.patch(f"{TABLE_URL}/abc123", json={"result": {"sys_id": "abc123"}})
+
+    result = make_client().add_work_note("abc123", "Tests passed")
+
+    assert result["sys_id"] == "abc123"
+    assert json.loads(responses.calls[0].request.body) == {"work_notes": "Tests passed"}
+
+
+@responses.activate
+def test_attach_file_sends_bytes_with_table_params(tmp_path):
+    report = tmp_path / "report.txt"
+    report.write_bytes(b"evidence")
+    responses.post(
+        f"{BASE}/api/now/attachment/file",
+        json={"result": {"sys_id": "att1", "file_name": "report.txt"}},
+        status=201,
+    )
+
+    result = make_client().attach_file("abc123", report)
+
+    assert result["file_name"] == "report.txt"
+    request = responses.calls[0].request
+    assert "table_name=change_request" in request.url
+    assert "table_sys_id=abc123" in request.url
+    assert "file_name=report.txt" in request.url
+    assert request.headers["Content-Type"] == "text/plain"
+
+
+@responses.activate
+def test_error_response_raises_with_status_and_message_but_no_secrets():
+    responses.post(
+        TABLE_URL,
+        json={"error": {"message": "User Not Authenticated"}},
+        status=401,
+    )
+
+    with pytest.raises(ServiceNowError) as excinfo:
+        make_client().create_change_request("Deploy")
+
+    message = str(excinfo.value)
+    assert "401" in message
+    assert "User Not Authenticated" in message
+    assert "secret" not in message
+
+
+@responses.activate
+def test_non_json_error_body_falls_back_to_reason():
+    responses.post(TABLE_URL, body="<html>sleeping</html>", status=503)
+
+    with pytest.raises(ServiceNowError, match="503"):
+        make_client().create_change_request("Deploy")
+
+
+@responses.activate
+def test_unexpected_success_body_raises():
+    responses.post(TABLE_URL, json={"unexpected": True}, status=200)
+
+    with pytest.raises(ServiceNowError, match="unexpected response"):
+        make_client().create_change_request("Deploy")
+
+
+@responses.activate
+def test_network_failure_is_wrapped():
+    responses.post(TABLE_URL, body=requests.ConnectionError("boom"))
+
+    with pytest.raises(ServiceNowError, match="ConnectionError"):
+        make_client().create_change_request("Deploy")
+
+
+def test_get_change_state_is_still_a_stub_until_m6():
     with pytest.raises(NotImplementedError):
-        client.create_change_request("Deploy", "details")
+        make_client().get_change_state("abc123")

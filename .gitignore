@@ -33,3 +33,7 @@ dbt/logs/
 .vscode/
 .idea/
 .DS_Store
+
+# Local scratch scripts
+pwcheck.py
+apicheck.py
