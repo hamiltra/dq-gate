@@ -73,9 +73,9 @@ flowchart LR
 > Optional head start before Monday: request the ServiceNow developer instance, since provisioning can take a little while.
 
 - [x] GitHub repository created (`dq-gate`), default branch `main`
-- [ ] ServiceNow developer account and PDI requested and reachable
-- [ ] Python 3.11+ installed; `make setup` completes
-- [ ] `make check` passes locally (lint and tests)
+- [x] ServiceNow developer account and PDI requested and reachable
+- [x] Python 3.11+ installed; `make setup` completes
+- [x] `make check` passes locally (lint and tests)
 - [ ] Pre-commit hooks installed (`pre-commit install`)
 - [x] First commit pushed to GitHub
 
@@ -87,10 +87,10 @@ flowchart LR
 - [x] Demonstrated: a failing test blocks the merge; a fix unblocks it (screenshot for README)
 
 ### M2: ServiceNow API proof (Week 1)
-- [ ] Integration user created in the PDI with the roles needed for change management
-- [ ] Credentials stored in `.env` locally and in GitHub Actions secrets
-- [ ] Script creates a change request, adds a work note, and attaches a file
-- [ ] Unit tests with mocked HTTP responses
+- [x] Integration user created in the PDI with the roles needed for change management
+- [x] Credentials stored in `.env` locally and in GitHub Actions secrets
+- [x] Script creates a change request, adds a work note, and attaches a file
+- [x] Unit tests with mocked HTTP responses
 
 ### M3: Snowflake and dbt in CI (Week 2)
 - [ ] Snowflake trial started (Enterprise); warehouse, resource monitor, database, schemas, role, key-pair user
