@@ -2,7 +2,7 @@
 
 A GitHub Actions pipeline that runs dbt tests and Snowflake data quality checks, blocks a merge or deploy when testing coverage is missing, and records evidence in a ServiceNow change request.
 
-**Status:** M1 complete (pull-request pipeline with lint and tests, protected `main`). Next: M2, ServiceNow API client. See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan, milestones and timeline.
+**Status:** M2 complete (ServiceNow client with mocked tests and a live smoke test). Next: M3, Snowflake and dbt in CI. See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan, milestones and timeline.
 
 All data in this project is synthetic.
 
@@ -64,3 +64,9 @@ docs/                 project plan, AI workflow log
 **Unblocked:** after reverting the change, both required checks pass and the merge is allowed.
 
 ![Merge enabled after checks pass](docs/img/m1-unblocked.png)
+
+## ServiceNow integration (M2)
+
+`dq_tools.servicenow.ServiceNowClient` creates a change request, adds a work note and attaches a file through the ServiceNow REST API. Unit tests mock all HTTP calls, so CI never touches a live instance. A hand-run smoke test (`python scripts/servicenow_smoke.py`) exercises the real API against a personal developer instance using a dedicated least-privilege integration user.
+
+![Change request created by the smoke test](docs/img/m2-servicenow-change.png)
