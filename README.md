@@ -70,3 +70,28 @@ docs/                 project plan, AI workflow log
 `dq_tools.servicenow.ServiceNowClient` creates a change request, adds a work note and attaches a file through the ServiceNow REST API. Unit tests mock all HTTP calls, so CI never touches a live instance. A hand-run smoke test (`python scripts/servicenow_smoke.py`) exercises the real API against a personal developer instance using a dedicated least-privilege integration user.
 
 ![Change request created by the smoke test](docs/img/m2-servicenow-change.png)
+
+## M3: dbt pipeline gated in CI
+
+Synthetic securities, daily prices and positions (seeded, no real data) are loaded into
+Snowflake `DQ_DEMO.RAW`. A dbt project builds staging views and mart tables with 25 data
+tests and 1 unit test. Every pull request runs `dbt build` against its own schemas
+(`CI_PR_<n>_STAGING`, `CI_PR_<n>_MARTS`), which are dropped when the job ends. CI logs in
+with key-pair auth; the private key lives only in a GitHub secret.
+
+The gate demo: I loaded RAW with three known defects (a duplicate security, a negative price,
+and an orphan position). Four tests failed, the marts were skipped, and the merge was blocked.
+After reloading clean data, all 32 nodes passed.
+
+| Defects loaded: merge blocked | Failing tests | Clean data: all checks pass |
+|---|---|---|
+| ![blocked](docs/img/m3-gate-blocked.png) | ![log](docs/img/m3-gate-log.png) | ![passed](docs/img/m3-gate-passed.png) |
+
+| Defect | Test that caught it |
+|---|---|
+| Duplicate security | `unique_stg_securities_security_id`, `unique_stg_securities_ticker` |
+| Negative price | `assert_prices_positive` |
+| Orphan position | `relationships_stg_positions_security_id` |
+
+Dependabot PRs skip `dbt-build` because GitHub does not give them Actions secrets.
+Slim CI (only changed models) is still to do.
