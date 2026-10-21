@@ -58,8 +58,10 @@ jobs:
   dbt-build:
     name: dbt-build
     runs-on: ubuntu-latest
-    # Secrets are not exposed to pull requests from forks, so only run for this repo's own branches.
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    # Secrets are hidden from forks and from Dependabot runs, so skip those
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
     env:
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
