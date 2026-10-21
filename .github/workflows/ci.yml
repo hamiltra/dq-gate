@@ -74,6 +74,14 @@ jobs:
         working-directory: dbt/dq_gate
     steps:
       - uses: actions/checkout@v4
+      - name: Check secrets are present
+        run: |
+          missing=0
+          for v in SNOWFLAKE_ACCOUNT SNOWFLAKE_USER SNOWFLAKE_ROLE SNOWFLAKE_WAREHOUSE SNOWFLAKE_DATABASE; do
+            [ -n "${!v}" ] || { echo "::error::$v is empty"; missing=1; }
+          done
+          [ -n "${{ secrets.SNOWFLAKE_PRIVATE_KEY != '' && 'yes' || '' }}" ] || { echo "::error::SNOWFLAKE_PRIVATE_KEY is empty"; missing=1; }
+          exit $missing
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
