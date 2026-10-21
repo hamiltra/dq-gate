@@ -1,0 +1,60 @@
+version: 2
+
+models:
+  - name: stg_securities
+    description: Cleaned security master.
+    columns:
+      - name: security_id
+        data_tests: [unique, not_null]
+      - name: ticker
+        data_tests: [unique, not_null]
+      - name: asset_class
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [EQUITY, BOND, ETF]
+      - name: currency
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [USD, EUR]
+
+  - name: stg_daily_prices
+    description: Cleaned daily closing prices.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [security_id, price_date]
+    columns:
+      - name: security_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_securities')
+                field: security_id
+      - name: price_date
+        data_tests: [not_null]
+      - name: close_price
+        data_tests: [not_null]
+
+  - name: stg_positions
+    description: Cleaned daily positions.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [portfolio_id, security_id, as_of_date]
+    columns:
+      - name: portfolio_id
+        data_tests: [not_null]
+      - name: security_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_securities')
+                field: security_id
+      - name: as_of_date
+        data_tests: [not_null]
+      - name: quantity
+        data_tests: [not_null]

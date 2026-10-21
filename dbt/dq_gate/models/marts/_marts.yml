@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: dim_security
+    description: One row per security with its price history range.
+    columns:
+      - name: security_id
+        data_tests: [unique, not_null]
+
+  - name: fct_position_valuation
+    description: Daily position market values (quantity x closing price).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [portfolio_id, security_id, as_of_date]
+    columns:
+      - name: market_value
+        data_tests: [not_null]
+
+  - name: mart_portfolio_summary
+    description: Daily total market value and position count per portfolio.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [portfolio_id, as_of_date]
+
+unit_tests:
+  - name: test_market_value_is_quantity_times_price
+    description: Market value must equal quantity multiplied by the day's closing price.
+    model: fct_position_valuation
+    given:
+      - input: ref('stg_positions')
+        rows:
+          - {portfolio_id: PF01, security_id: SEC0001, as_of_date: "2026-08-03", quantity: 100}
+          - {portfolio_id: PF01, security_id: SEC0002, as_of_date: "2026-08-03", quantity: 50}
+      - input: ref('stg_daily_prices')
+        rows:
+          - {security_id: SEC0001, price_date: "2026-08-03", close_price: 10.5}
+          - {security_id: SEC0002, price_date: "2026-08-03", close_price: 20}
+    expect:
+      rows:
+        - {portfolio_id: PF01, security_id: SEC0001, as_of_date: "2026-08-03", quantity: 100, close_price: 10.5, market_value: 1050}
+        - {portfolio_id: PF01, security_id: SEC0002, as_of_date: "2026-08-03", quantity: 50, close_price: 20, market_value: 1000}

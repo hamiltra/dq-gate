@@ -1,0 +1,27 @@
+# dbt profile. Contains NO secrets: every value comes from environment variables.
+# Local runs read them from your shell (see .env.example); CI sets them from GitHub secrets.
+#
+# Targets
+#   dev  - your own schemas (DBT_DEV_STAGING, DBT_DEV_MARTS)
+#   ci   - per-pull-request schemas (CI_PR_<n>_STAGING, ...), dropped when the job ends
+#   prod - STAGING and MARTS exactly as named; used by the deploy job in M6
+dq_gate:
+  target: dev
+  outputs:
+    dev: &base
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      schema: "{{ env_var('DBT_SCHEMA', 'DBT_DEV') }}"
+      threads: 4
+      client_session_keep_alive: false
+    ci:
+      <<: *base
+      schema: "{{ env_var('DBT_SCHEMA', 'CI_LOCAL') }}"
+    prod:
+      <<: *base
+      schema: PUBLIC
