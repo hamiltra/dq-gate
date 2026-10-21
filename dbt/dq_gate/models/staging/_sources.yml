@@ -1,0 +1,18 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Synthetic data loaded by scripts/load_raw.py. No real data.
+    schema: RAW
+    config:
+      loaded_at_field: loaded_at
+      freshness:
+        warn_after: {count: 7, period: day}
+        error_after: {count: 30, period: day}
+    tables:
+      - name: securities
+        description: Security master (one row per security).
+      - name: daily_prices
+        description: Daily closing price per security.
+      - name: positions
+        description: Daily quantity held per portfolio and security.

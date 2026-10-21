@@ -4,7 +4,6 @@
 !.env.example
 *.pem
 *.p8
-profiles.yml
 
 # Python
 __pycache__/
@@ -37,3 +36,10 @@ dbt/logs/
 # Local scratch scripts
 pwcheck.py
 apicheck.py
+
+# Synthetic data and dbt build output
+data/
+dbt/**/target/
+dbt/**/logs/
+dbt/**/dbt_packages/
+dbt/**/.user.yml
