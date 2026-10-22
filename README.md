@@ -95,3 +95,29 @@ After reloading clean data, all 32 nodes passed.
 
 Dependabot PRs skip `dbt-build` because GitHub does not give them Actions secrets.
 Slim CI (only changed models) is still to do.
+
+## M4: Snowflake data metric functions
+
+Five checks run against `DQ_DEMO.RAW`: `NULL_COUNT` on `security_id` and `close_price`,
+`DUPLICATE_COUNT` on `SECURITIES.security_id`, `FRESHNESS`, and a custom function,
+`DQ_AUDIT.NON_POSITIVE_COUNT`, that counts zero or negative prices. The functions are attached to the
+tables, so Snowflake evaluates them itself whenever the data changes. `scripts/dmf.py check` also
+calls each one directly, compares the value with a limit, writes a row per check to
+`DQ_AUDIT.DMF_RESULTS`, and exits non-zero on a failure. The `dmf-check` CI job runs it on every
+pull request.
+
+```bash
+python scripts/dmf.py apply     # create the custom function and attach the functions (once)
+python scripts/dmf.py check     # run the checks, record results, fail on a bad value
+python scripts/dmf.py native    # show what Snowflake recorded for the attached functions
+```
+
+With the injected defects loaded, the duplicate security and the negative price were caught; the
+orphan position is a cross-table problem that only the dbt `relationships` test catches.
+
+| Defects loaded: two checks fail | Clean data: all pass | Results in `DQ_AUDIT` |
+|---|---|---|
+| ![fail](docs/img/m4-dmf-fail.png) | ![pass](docs/img/m4-dmf-pass.png) | ![audit](docs/img/m4-audit-table.png) |
+
+Scheduled DMFs run on Snowflake-managed compute. To pause them, set `DATA_METRIC_SCHEDULE = ''`
+on the RAW tables; `scripts/dmf.py apply` turns them back on.
