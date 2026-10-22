@@ -100,9 +100,9 @@ flowchart LR
 - [ ] Slim CI: only changed models and their dependents run
 
 ### M4: Snowflake native checks (Week 2)
-- [ ] At least three DMFs attached to tables (for example null count, duplicate count, freshness)
-- [ ] One custom DMF
-- [ ] Results queryable and written to `DQ_AUDIT`
+- [x] At least three DMFs attached to tables (for example null count, duplicate count, freshness)
+- [x] One custom DMF
+- [x] Results queryable and written to `DQ_AUDIT`
 
 ### M5: Coverage gate and reporting (Week 3)
 - [ ] Script fails the pipeline when a changed model has no tests
