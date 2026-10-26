@@ -24,6 +24,18 @@ models:
           arguments:
             columns: [portfolio_id, as_of_date]
 
+  - name: mart_sector_exposure
+    description: Daily market value per portfolio and sector, with the sector's share of the portfolio.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [portfolio_id, as_of_date, sector]
+    columns:
+      - name: sector
+        data_tests: [not_null]
+      - name: market_value
+        data_tests: [not_null]
+
 unit_tests:
   - name: test_market_value_is_quantity_times_price
     description: Market value must equal quantity multiplied by the day's closing price.
