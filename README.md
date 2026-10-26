@@ -2,7 +2,7 @@
 
 A GitHub Actions pipeline that runs dbt tests and Snowflake data quality checks, blocks a merge or deploy when testing coverage is missing, and records evidence in a ServiceNow change request.
 
-**Status:** M2 complete (ServiceNow client with mocked tests and a live smoke test). Next: M3, Snowflake and dbt in CI. See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan, milestones and timeline.
+**Status:** M4 complete (dbt tests and Snowflake data metric functions gate every pull request). Next: M5, the coverage gate and reporting. See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan, milestones and timeline.
 
 All data in this project is synthetic.
 
@@ -33,12 +33,13 @@ Copy `.env.example` to `.env` for local credentials. Never commit `.env`.
 ## Repository layout
 
 ```
-.github/workflows/   CI pipeline (pull requests and main)
-src/dq_tools/         Python tooling (config, ServiceNow client, later: coverage gate, reporting)
+.github/workflows/   CI pipeline (pull requests and main), manual RAW reload, DMF checks
+src/dq_tools/         Python tooling (config, ServiceNow client, synthetic data, RAW loader, DMFs)
 tests/                pytest unit tests
-dbt/                  dbt project (M3)
-scripts/              utilities added in later milestones
-docs/                 project plan, AI workflow log
+dbt/                  dbt project: staging and mart models, tests, CI schema macros
+snowflake/            one-off Snowflake setup SQL (grants)
+scripts/              CLI entry points (data generation, RAW load, DMFs, smoke tests, dbt in Docker)
+docs/                 project plan, runbooks, AI workflow log, screenshots
 ```
 
 ## GitHub setup checklist (M1)

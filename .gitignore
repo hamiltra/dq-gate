@@ -43,3 +43,8 @@ dbt/**/target/
 dbt/**/logs/
 dbt/**/dbt_packages/
 dbt/**/.user.yml
+
+# Editor swap files and local bundles
+*.swp
+*.swo
+*.zip
