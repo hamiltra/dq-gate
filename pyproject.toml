@@ -19,7 +19,7 @@ snowflake = [
     "snowflake-connector-python>=3.12",
 ]
 dev = [
-    "pytest>=8.0",
+    "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "responses>=0.25",
     "ruff>=0.6",
