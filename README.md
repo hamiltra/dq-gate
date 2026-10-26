@@ -2,7 +2,7 @@
 
 A GitHub Actions pipeline that runs dbt tests and Snowflake data quality checks, blocks a merge or deploy when testing coverage is missing, and records evidence in a ServiceNow change request.
 
-**Status:** M4 complete (dbt tests and Snowflake data metric functions gate every pull request). Next: M5, the coverage gate and reporting. See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan, milestones and timeline.
+**Status:** M5 complete (dbt tests, Snowflake data metric functions and a test coverage gate run on every pull request). Next: M6, the ServiceNow change request and deploy gate. See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan, milestones and timeline.
 
 All data in this project is synthetic.
 
@@ -122,3 +122,30 @@ orphan position is a cross-table problem that only the dbt `relationships` test 
 
 Scheduled DMFs run on Snowflake-managed compute. To pause them, set `DATA_METRIC_SCHEDULE = ''`
 on the RAW tables; `scripts/dmf.py apply` turns them back on.
+
+## M5: test coverage gate and reporting
+
+The `coverage-gate` job fails a pull request when a dbt model it changes has no data tests. It
+diffs the branch against its base and reads dbt's `manifest.json`, built with `dbt parse`, so it
+needs no Snowflake credentials. A model counts as changed when its SQL or its properties YAML
+changes, so deleting a model's tests is caught too. A model is covered when a generic test is
+attached to it or a singular test refs it. Unit tests are listed but do not count on their own,
+because they check the SQL logic, not the data. `coverage-gate` is a required check on `main`.
+
+Every pull request also gets:
+
+- a **dbt results** check: `scripts/results_to_junit.py` turns dbt's `run_results.json` into
+  JUnit XML, one test case per model and test, and the pipeline publishes it on the pull request
+- a summary comment from the gate, listing each changed model and its test counts, updated on
+  every push instead of posted again
+
+```bash
+python scripts/coverage_gate.py --base origin/main   # after dbt parse; exit 1 if a model lacks tests
+python scripts/results_to_junit.py                   # target/run_results.json -> dbt-junit.xml
+```
+
+The gate demo (PR #23): I added a new model, `mart_sector_exposure`, without tests. The gate
+failed (5 of 6 checks) and the merge was blocked. The next commit added three data tests and all
+6 checks passed.
+
+![Coverage gate: fails without tests, passes once tests are added](docs/img/m5-pass-fail.png)

@@ -106,7 +106,7 @@ flowchart LR
 
 ### M5: Coverage gate and reporting (Week 3)
 - [x] Script fails the pipeline when a changed model has no tests
-- [ ] Passing after a test is added (demonstrate both in screenshots)
+- [x] Passing after a test is added (demonstrate both in screenshots)
 - [x] JUnit XML results visible in the pull request
 - [x] Pull request comment with a summary posted by the pipeline
 
