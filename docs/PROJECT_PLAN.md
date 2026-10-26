@@ -93,16 +93,16 @@ flowchart LR
 - [x] Unit tests with mocked HTTP responses
 
 ### M3: Snowflake and dbt in CI (Week 2)
-- [ ] Snowflake trial started (Enterprise); warehouse, resource monitor, database, schemas, role, key-pair user
-- [ ] Synthetic data generated and loaded
-- [ ] dbt project with staging and mart models, generic and singular tests, source freshness
-- [ ] CI job runs `dbt build` using key-pair auth
+- [x] Snowflake trial started (Enterprise); warehouse, resource monitor, database, schemas, role, key-pair user
+- [x] Synthetic data generated and loaded
+- [x] dbt project with staging and mart models, generic and singular tests, source freshness
+- [x] CI job runs `dbt build` using key-pair auth
 - [ ] Slim CI: only changed models and their dependents run
 
 ### M4: Snowflake native checks (Week 2)
-- [ ] At least three DMFs attached to tables (for example null count, duplicate count, freshness)
-- [ ] One custom DMF
-- [ ] Results queryable and written to `DQ_AUDIT`
+- [x] At least three DMFs attached to tables (for example null count, duplicate count, freshness)
+- [x] One custom DMF
+- [x] Results queryable and written to `DQ_AUDIT`
 
 ### M5: Coverage gate and reporting (Week 3)
 - [ ] Script fails the pipeline when a changed model has no tests
