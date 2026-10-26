@@ -105,10 +105,10 @@ flowchart LR
 - [x] Results queryable and written to `DQ_AUDIT`
 
 ### M5: Coverage gate and reporting (Week 3)
-- [ ] Script fails the pipeline when a changed model has no tests
+- [x] Script fails the pipeline when a changed model has no tests
 - [ ] Passing after a test is added (demonstrate both in screenshots)
-- [ ] JUnit XML results visible in the pull request
-- [ ] Pull request comment with a summary posted by the pipeline
+- [x] JUnit XML results visible in the pull request
+- [x] Pull request comment with a summary posted by the pipeline
 
 ### M6: ServiceNow integration and deploy gate (Week 3)
 - [ ] Pipeline creates a change request and attaches the test report
