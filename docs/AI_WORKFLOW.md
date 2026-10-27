@@ -1,8 +1,8 @@
 # AI-assisted development log
 
 How AI tools were used to build DQ Gate, what they got wrong, and how that was caught. The facts
-come from the repository history, the runbooks and the pull requests. The sections marked
-**To fill in** are for my own judgment.
+come from the repository history, the runbooks and the pull requests. The two sections on review
+and trust are my own judgment.
 
 ## Tools used
 
@@ -51,17 +51,11 @@ come from the repository history, the runbooks and the pull requests. The sectio
 
 ## What I reviewed or rewrote by hand, and why
 
-**To fill in:** for example, which generated code or docs you read line by line, what you
-changed, and what you accepted on the strength of the tests.
-
--
+For milestones M0-M4, I worked side-by-side with Claude.ai doing the cutting and pasting. I did this until I began fully understanding all of the workflow processes between GitHub, ServiceNow and Snowflake. I checked about 30% along the way to ensure that the application was progressing correctly. Milestones M5-M7 were with using VS Code and Claude Code plugins to assist with the development and streamline the overall progress. Putting Claude Code into the workflow speeded up the progress by 5-6x.
 
 ## Where I stopped trusting generated output
 
-**To fill in:** for example, which kinds of claims you now always verify (the table above has
-candidates: "already written", "safe to bypass", "this check failed").
-
--
+I now verify some of the code but focus more on making sure that the process functions with the correct requirements and process works as a user would expect. Sometimes Claude would make mistakes, however, it would often correct itself. Sometimes I would notice in the process that something Claude would try to do that I knew would fail and would wait for Claude to pause for input along the way.
 
 ## Guardrails
 

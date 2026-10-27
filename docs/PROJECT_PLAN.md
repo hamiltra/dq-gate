@@ -117,8 +117,8 @@ flowchart LR
 
 ### M7: Polish and publish (Week 4)
 - [x] README with diagram, setup steps and screenshots
-- [ ] `AI_WORKFLOW.md` completed
-- [ ] 2-3 minute demo recording
+- [x] `AI_WORKFLOW.md` completed
+- [ ] ~~2-3 minute demo recording~~ (dropped; the README screenshots show each gate working)
 - [x] Repo mirrored to GitHub (no secrets in history)
 - [ ] Resume and LinkedIn updated with accurate bullets
 
