@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-DQ Gate: a GitHub Actions pipeline that runs dbt tests and Snowflake data quality checks on **synthetic** financial data (securities, daily prices, positions), blocks merges/deploys when checks or test coverage fail, and records evidence in a ServiceNow change request. It is built milestone by milestone (M0–M7); `docs/PROJECT_PLAN.md` holds the milestone checklists and is ticked off as work lands. M1–M5 are done and M6 (ServiceNow change and deploy gate) is built; its end-to-end run is still to record. Still to do: slim CI (M3 leftover) and M7 polish.
+DQ Gate: a GitHub Actions pipeline that runs dbt tests and Snowflake data quality checks on **synthetic** financial data (securities, daily prices, positions), blocks merges/deploys when checks or test coverage fail, and records evidence in a ServiceNow change request. It is built milestone by milestone (M0–M7); `docs/PROJECT_PLAN.md` holds the milestone checklists and is ticked off as work lands. M1–M6 are done. Still to do: slim CI (M3 leftover) and M7 polish.
 
 Constraints from the plan: synthetic data only, and no real data, code or designs from current or former employers. CI runs on GitHub Actions, not GitLab (the job description in `docs/HANDOFF.md` says GitLab, but that was a deliberate choice).
 

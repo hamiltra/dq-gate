@@ -2,7 +2,7 @@
 
 A GitHub Actions pipeline that runs dbt tests and Snowflake data quality checks, blocks a merge or deploy when testing coverage is missing, and records evidence in a ServiceNow change request.
 
-**Status:** M5 complete (dbt tests, Snowflake data metric functions and a test coverage gate run on every pull request). Next: M6, the ServiceNow change request and deploy gate. See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan, milestones and timeline.
+**Status:** M6 complete (every pull request is gated by dbt tests, data metric functions and a test coverage gate; every production deploy waits for an approved ServiceNow change). Next: M7, polish and publish. See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan, milestones and timeline.
 
 All data in this project is synthetic.
 
@@ -149,3 +149,37 @@ failed (5 of 6 checks) and the merge was blocked. The next commit added three da
 6 checks passed.
 
 ![Coverage gate: fails without tests, passes once tests are added](docs/img/m5-pass-fail.png)
+
+## M6: ServiceNow change and deploy gate
+
+Every merge to `main` goes to production only through an approved ServiceNow change. After the
+checks pass again on the merged code, the `change-request` job opens a normal change and attaches
+the evidence: the dbt JUnit report, `run_results.json` and the coverage summary. Its description
+names the commit, the pipeline run and the test counts. The `deploy-prod` job (GitHub environment
+`production`, which only `main` can deploy to) then checks the change every 30 seconds:
+
+- **Approved and Scheduled:** it moves the change to Implement, runs `dbt build --target prod`,
+  adds a work note with the results and moves the change to Review.
+- **Rejected or canceled:** it fails at once.
+- **No decision in 15 minutes:** it fails with a message to approve the change and re-run the job.
+  The re-run picks up the same change.
+
+The pipeline cannot approve its own change. A person approves it in ServiceNow and closes it
+after review. Runs on `main` queue instead of cancelling each other, so a new merge never cancels
+a deploy that is waiting.
+
+```bash
+python scripts/change_request.py create --sha <commit> --run-url <url> --attach dbt-junit.xml
+python scripts/change_request.py wait --sys-id <sys_id>       # exit 0 once approved and scheduled
+python scripts/change_request.py finish --sys-id <sys_id> --result success --run-url <url>
+```
+
+The first end-to-end run (PR #25, change CHG0030003): the first 15-minute wait ran out while the
+change was still waiting for CAB approval, so the job failed as designed. After the approval, a
+re-run of the job moved the change to Implement, deployed all 36 models and tests to `STAGING`
+and `MARTS`, and moved the change to Review. I closed it by hand after the review.
+[docs/M6_RUNBOOK.md](docs/M6_RUNBOOK.md) has the approval steps.
+
+| Change opened by the pipeline, with evidence | Activity: approval, deploy, review | The pull request |
+|---|---|---|
+| ![change](docs/img/m6_chg0030003_closed-top.png) | ![activity](docs/img/m6_chg0030003_closed-bot.png) | ![pr](docs/img/m6_github-pullrequest.png) |

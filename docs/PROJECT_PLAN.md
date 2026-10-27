@@ -111,9 +111,9 @@ flowchart LR
 - [x] Pull request comment with a summary posted by the pipeline
 
 ### M6: ServiceNow integration and deploy gate (Week 3)
-- [ ] Pipeline creates a change request and attaches the test report
-- [ ] `deploy_prod` waits for approved state
-- [ ] End-to-end run recorded
+- [x] Pipeline creates a change request and attaches the test report
+- [x] `deploy_prod` waits for approved state
+- [x] End-to-end run recorded
 
 ### M7: Polish and publish (Week 4)
 - [ ] README with diagram, setup steps and screenshots
