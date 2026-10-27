@@ -1,7 +1,7 @@
 """ServiceNow REST client for change management.
 
-Implemented in M2: create a change request, add a work note, attach a file.
-Still to do in M6: read the change state for the deploy gate.
+M2: create a change request, add a work note, attach a file.
+M6: read a change's state and approval for the deploy gate, and move it to another state.
 """
 
 from __future__ import annotations
@@ -107,9 +107,29 @@ class ServiceNowClient:
                 headers={"Content-Type": content_type},
             )
 
+    def get_change(self, sys_id: str) -> dict:
+        """Return the change's number, state and approval as raw values (state is e.g. '-2')."""
+        return self._request(
+            "GET",
+            f"/api/now/table/{CHANGE_TABLE}/{sys_id}",
+            params={"sysparm_fields": "number,state,approval"},
+        )
+
     def get_change_state(self, sys_id: str) -> str:
-        """TODO (M6): read the change state, used by the deploy gate."""
-        raise NotImplementedError("Implement in milestone M6")
+        """Return the change's state value, e.g. '-5' for New or '-2' for Scheduled."""
+        return self.get_change(sys_id)["state"]
+
+    def set_change_state(
+        self, sys_id: str, state: str, note: str | None = None, fields: dict | None = None
+    ) -> dict:
+        """Move a change to another state, with an optional work note and other fields.
+
+        Date fields go in as raw values, which the Table API reads as UTC.
+        """
+        payload = {**(fields or {}), "state": state}
+        if note:
+            payload["work_notes"] = note
+        return self._request("PATCH", f"/api/now/table/{CHANGE_TABLE}/{sys_id}", json=payload)
 
 
 def _error_text(response: requests.Response) -> str:
