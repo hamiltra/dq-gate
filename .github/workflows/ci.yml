@@ -4,7 +4,8 @@
 #       per-pull-request schema pair that is dropped when the job ends.
 #   M5: dbt-build publishes its results as JUnit (a "dbt results" check on the PR); coverage-gate
 #       fails when a changed dbt model has no data tests and posts a summary comment on the PR.
-# Later milestones add: ServiceNow change + deploy gate (M6).
+#   M6: on pushes to main, change-request opens a ServiceNow change with the test evidence and
+#       deploy-prod waits for it to be approved before running `dbt build --target prod`.
 name: CI
 
 on:
@@ -12,10 +13,11 @@ on:
   push:
     branches: [main]
 
-# Cancel superseded runs on the same branch/PR.
+# Cancel superseded runs on the same pull request. Runs on main queue instead, so a new merge
+# never cancels a deploy that is waiting for approval or already running.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -115,6 +117,13 @@ jobs:
           else
             gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@coverage-summary.md > /dev/null
           fi
+      - name: Upload coverage summary
+        if: always() && hashFiles('coverage-summary.md') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-summary
+          path: coverage-summary.md
+          retention-days: 7
 
   dbt-build:
     name: dbt-build
@@ -194,6 +203,108 @@ jobs:
       - name: Drop CI schemas
         if: always()
         run: dbt run-operation drop_ci_schemas --target ci
+      - name: Remove private key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/snowflake_key.p8"
+
+  # M6: everything below runs only after a merge to main, once every check above has passed.
+  change-request:
+    name: change-request
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, unit-tests, coverage-gate, dbt-build]
+    runs-on: ubuntu-latest
+    outputs:
+      sys_id: ${{ steps.create.outputs.sys_id }}
+      number: ${{ steps.create.outputs.number }}
+    env:
+      SERVICENOW_INSTANCE: ${{ secrets.SERVICENOW_INSTANCE }}
+      SERVICENOW_USER: ${{ secrets.SERVICENOW_USER }}
+      SERVICENOW_PASSWORD: ${{ secrets.SERVICENOW_PASSWORD }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e .
+      - uses: actions/download-artifact@v8
+        with:
+          name: dbt-artifacts
+          path: evidence
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-summary
+          path: evidence
+      - name: Open change request with the test evidence
+        id: create
+        run: >-
+          python scripts/change_request.py create --sha "$GITHUB_SHA" --run-url "$RUN_URL"
+          --run-results evidence/run_results.json
+          --coverage-summary evidence/coverage-summary.md
+          --attach evidence/dbt-junit.xml evidence/run_results.json evidence/coverage-summary.md
+
+  deploy-prod:
+    name: deploy-prod
+    needs: change-request
+    runs-on: ubuntu-latest
+    # The approval wait is 15 minutes; if it times out, approve the change and re-run this job.
+    timeout-minutes: 45
+    environment: production
+    env:
+      SERVICENOW_INSTANCE: ${{ secrets.SERVICENOW_INSTANCE }}
+      SERVICENOW_USER: ${{ secrets.SERVICENOW_USER }}
+      SERVICENOW_PASSWORD: ${{ secrets.SERVICENOW_PASSWORD }}
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+      SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+      SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+      DBT_PROFILES_DIR: ${{ github.workspace }}/dbt
+      SYS_ID: ${{ needs.change-request.outputs.sys_id }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            dbt/requirements.txt
+            pyproject.toml
+      - run: pip install -r dbt/requirements.txt -e .
+      - name: Wait for ${{ needs.change-request.outputs.number }} to be approved
+        run: python scripts/change_request.py wait --sys-id "$SYS_ID" --timeout 900 --interval 30
+      - name: Write Snowflake private key
+        env:
+          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+        run: |
+          umask 077
+          key_file="$RUNNER_TEMP/snowflake_key.p8"
+          printf '%s\n' "$SNOWFLAKE_PRIVATE_KEY" > "$key_file"
+          echo "SNOWFLAKE_PRIVATE_KEY_PATH=$key_file" >> "$GITHUB_ENV"
+      - name: dbt build (prod)
+        id: deploy
+        working-directory: dbt/dq_gate
+        run: dbt build --target prod
+      - name: Record the result in the change
+        if: always() && steps.deploy.outcome != 'skipped'
+        env:
+          RESULT: ${{ steps.deploy.outcome == 'success' && 'success' || 'failure' }}
+        run: >-
+          python scripts/change_request.py finish --sys-id "$SYS_ID" --result "$RESULT"
+          --run-url "$RUN_URL" --run-results dbt/dq_gate/target/run_results.json
+      - name: Upload prod dbt artifacts
+        if: always() && steps.deploy.outcome != 'skipped'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dbt-prod-artifacts
+          path: |
+            dbt/dq_gate/target/run_results.json
+            dbt/dq_gate/target/manifest.json
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Remove private key
         if: always()
         run: rm -f "$RUNNER_TEMP/snowflake_key.p8"

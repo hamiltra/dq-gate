@@ -8,4 +8,5 @@ Thin command-line wrappers around `src/dq_tools`:
 - `dmf.py`: attach and run Snowflake data metric functions (M4)
 - `coverage_gate.py`: fail if a changed dbt model has no data tests (M5)
 - `results_to_junit.py`: convert dbt `run_results.json` to JUnit XML (M5)
+- `change_request.py`: open the ServiceNow change, wait for approval, record the deploy (M6)
 - `servicenow_smoke.py`, `snowflake_smoke.py`: hand-run checks against the live services

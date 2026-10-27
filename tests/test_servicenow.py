@@ -122,6 +122,36 @@ def test_network_failure_is_wrapped():
         make_client().create_change_request("Deploy")
 
 
-def test_get_change_state_is_still_a_stub_until_m6():
-    with pytest.raises(NotImplementedError):
-        make_client().get_change_state("abc123")
+@responses.activate
+def test_get_change_reads_number_state_and_approval():
+    responses.get(
+        f"{TABLE_URL}/abc123",
+        json={"result": {"number": "CHG0030002", "state": "-2", "approval": "approved"}},
+    )
+
+    client = make_client()
+    assert client.get_change("abc123") == {
+        "number": "CHG0030002",
+        "state": "-2",
+        "approval": "approved",
+    }
+    assert "sysparm_fields=number%2Cstate%2Capproval" in responses.calls[0].request.url
+    assert client.get_change_state("abc123") == "-2"
+
+
+@responses.activate
+def test_set_change_state_patches_state_and_optional_note():
+    responses.patch(f"{TABLE_URL}/abc123", json={"result": {"sys_id": "abc123", "state": "0"}})
+
+    client = make_client()
+    client.set_change_state("abc123", "0", note="Deployed")
+    client.set_change_state("abc123", "0")
+    client.set_change_state("abc123", "0", fields={"work_end": "2026-10-27 19:50:00", "state": "x"})
+
+    assert json.loads(responses.calls[0].request.body) == {"state": "0", "work_notes": "Deployed"}
+    assert json.loads(responses.calls[1].request.body) == {"state": "0"}
+    # the explicit state argument wins over a state passed in fields
+    assert json.loads(responses.calls[2].request.body) == {
+        "work_end": "2026-10-27 19:50:00",
+        "state": "0",
+    }
