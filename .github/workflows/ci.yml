@@ -67,6 +67,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write # post the summary comment
+    outputs:
+      deploy_needed: ${{ steps.scope.outputs.deploy_needed }}
     env:
       DBT_PROFILES_DIR: ${{ github.workspace }}/dbt
       # profiles.yml requires these to render; parse never uses them.
@@ -82,6 +84,20 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the gate diffs against the base commit
+      - name: Does this change need a production deploy?
+        id: scope
+        # Docs-only changes (docs/, README.md, CLAUDE.md) skip the change request and deploy.
+        # If the diff cannot be computed, deploy to be safe.
+        run: |
+          if ! files=$(git diff --name-only "$BASE_SHA"...HEAD); then
+            needed=true
+          elif printf '%s\n' "$files" | grep -qvE '^(docs/|README\.md$|CLAUDE\.md$|$)'; then
+            needed=true
+          else
+            needed=false
+          fi
+          echo "deploy_needed=$needed" >> "$GITHUB_OUTPUT"
+          echo "Production deploy needed: $needed"
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -210,7 +226,9 @@ jobs:
   # M6: everything below runs only after a merge to main, once every check above has passed.
   change-request:
     name: change-request
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      needs.coverage-gate.outputs.deploy_needed == 'true'
     needs: [lint, unit-tests, coverage-gate, dbt-build]
     runs-on: ubuntu-latest
     outputs:
