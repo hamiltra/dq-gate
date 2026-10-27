@@ -48,3 +48,6 @@ dbt/**/.user.yml
 *.swp
 *.swo
 *.zip
+
+# Personal notes (kept locally, never committed)
+docs/HANDOFF.md

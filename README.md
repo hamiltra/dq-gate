@@ -2,22 +2,43 @@
 
 A GitHub Actions pipeline that runs dbt tests and Snowflake data quality checks, blocks a merge or deploy when testing coverage is missing, and records evidence in a ServiceNow change request.
 
-**Status:** M6 complete (every pull request is gated by dbt tests, data metric functions and a test coverage gate; every production deploy waits for an approved ServiceNow change). Next: M7, polish and publish. See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan, milestones and timeline.
+**Status:** M1–M6 complete: every pull request is gated by dbt tests, data metric functions and a test coverage gate, and every production deploy waits for an approved ServiceNow change. M7 (polish and publish) is in progress. See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan, milestones and timeline.
 
 All data in this project is synthetic.
 
-## Architecture (target)
+## How it works
 
 ```mermaid
 flowchart LR
-    PR[Pull request] --> CI[GitHub Actions pipeline]
-    CI --> L[Lint + pytest]
-    CI --> D[dbt build, changed models only]
-    D --> SF[(Snowflake)]
-    CI --> G[Coverage gate]
-    CI --> SN[ServiceNow change + evidence]
-    SN --> P[Deploy gate]
+    subgraph PR["Every pull request"]
+        direction TB
+        L[lint + unit-tests] --> G{merge allowed?}
+        CG["coverage-gate<br/>changed models need data tests"] --> G
+        DB["dbt-build<br/>freshness + dbt build in CI_PR_n schemas"] --> G
+        DMF["dmf-check<br/>Snowflake data metric functions"] -.-> G
+        DB --> J[dbt results check<br/>JUnit on the PR]
+        CG --> C[summary comment<br/>on the PR]
+    end
+    subgraph MAIN["Every merge to main"]
+        direction TB
+        CK[same checks on the merged code] --> CR["change-request<br/>ServiceNow change + evidence"]
+        CR --> W{"deploy-prod<br/>approved and scheduled?"}
+        W -- yes --> P["dbt build --target prod<br/>STAGING + MARTS"]
+        P --> RV[change moved to Review]
+        W -- "rejected / 15 min timeout" --> X[job fails, nothing deployed]
+    end
+    G --> MAIN
+    SN[(ServiceNow)] <--> CR
+    SN <--> W
+    SF[(Snowflake DQ_DEMO)] <--> DB
+    SF <--> P
 ```
+
+- **Pull requests** must pass `lint`, `unit-tests`, `dbt-build` and `coverage-gate` (the
+  required checks in the `protect-main` ruleset). `dmf-check` also runs on every pull request.
+- **Merges to `main`** run the same checks again, then open a ServiceNow change with the test
+  evidence attached. The production deploy waits until a person approves that change. Merges that
+  only touch documentation (`docs/`, `README.md`, `CLAUDE.md`) skip the change and the deploy.
 
 ## Quick start
 
@@ -30,29 +51,43 @@ make check     # lint + tests (what CI runs)
 
 Copy `.env.example` to `.env` for local credentials. Never commit `.env`.
 
+## Setting it up from scratch
+
+1. **Accounts.** A Snowflake trial on Enterprise edition (data metric functions need it), a
+   ServiceNow personal developer instance, and a GitHub repository. dbt Core is free.
+2. **Snowflake.** A database `DQ_DEMO` with schemas `RAW`, `STAGING`, `MARTS` and `DQ_AUDIT`, an
+   XS warehouse with a short auto-suspend and a resource monitor, and a service user with
+   key-pair authentication (no password). The user's role (`DQ_CI_ROLE` here) needs usage and
+   create-schema on the database, full privileges on the four schemas, and the grants in
+   [snowflake/m4_grants.sql](snowflake/m4_grants.sql) for the data metric functions.
+3. **Data.** `make load-raw` generates the synthetic data and loads `RAW`. The manual *Load RAW
+   data* workflow does the same from GitHub.
+4. **ServiceNow.** A dedicated integration user that can create and update change requests and
+   attachments. [docs/M6_RUNBOOK.md](docs/M6_RUNBOOK.md) covers approving a change.
+5. **GitHub secrets** (Settings > Secrets and variables > Actions): `SNOWFLAKE_ACCOUNT`,
+   `SNOWFLAKE_USER`, `SNOWFLAKE_ROLE`, `SNOWFLAKE_WAREHOUSE`, `SNOWFLAKE_DATABASE`,
+   `SNOWFLAKE_PRIVATE_KEY` (the PEM text), `SERVICENOW_INSTANCE`, `SERVICENOW_USER`,
+   `SERVICENOW_PASSWORD`.
+6. **GitHub settings.** A `production` environment limited to the `main` branch, and a branch
+   ruleset on `main` that requires a pull request, blocks force pushes, and requires the `lint`,
+   `unit-tests`, `dbt-build` and `coverage-gate` checks.
+7. **One-time data metric function setup:** `python scripts/dmf.py apply`.
+
+The milestone sections below show each piece working; the runbooks in [docs/](docs/) have the
+step-by-step detail.
+
 ## Repository layout
 
 ```
-.github/workflows/   CI pipeline (pull requests and main), manual RAW reload, DMF checks
-src/dq_tools/         Python tooling (config, ServiceNow client, synthetic data, RAW loader, DMFs)
-tests/                pytest unit tests
-dbt/                  dbt project: staging and mart models, tests, CI schema macros
-snowflake/            one-off Snowflake setup SQL (grants)
-scripts/              CLI entry points (data generation, RAW load, DMFs, smoke tests, dbt in Docker)
+.github/workflows/   ci.yml (all checks, change request, deploy), dmf-check.yml, load-raw.yml
+src/dq_tools/         Python tooling: config, ServiceNow client, change gate, coverage gate,
+                      JUnit conversion, synthetic data, RAW loader, data metric functions
+tests/                pytest unit tests (no live services)
+dbt/                  dbt project: staging and mart models, tests, schema macros, pinned toolchain
+snowflake/            one-off Snowflake grants
+scripts/              command-line entry points (see scripts/README.md)
 docs/                 project plan, runbooks, AI workflow log, screenshots
 ```
-
-## GitHub setup checklist (M1)
-
-1. Push `main` to GitHub (done if you can see the files).
-2. Settings > Rules > Rulesets > New branch ruleset, target `main`:
-   - Require a pull request before merging
-   - Require status checks to pass (add `lint` and `unit-tests` after their first run)
-   - Block force pushes
-3. Open a pull request and confirm `lint` and `unit-tests` run under Actions.
-4. Break a test on purpose, confirm the merge is blocked, then fix it (screenshot for the README).
-5. Optional: register a self-hosted runner (Settings > Actions > Runners). Do not let fork pull requests run on it if the repo is public.
-
 
 ## Merge gate demo (M1)
 

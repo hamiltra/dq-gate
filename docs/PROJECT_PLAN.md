@@ -116,10 +116,10 @@ flowchart LR
 - [x] End-to-end run recorded
 
 ### M7: Polish and publish (Week 4)
-- [ ] README with diagram, setup steps and screenshots
+- [x] README with diagram, setup steps and screenshots
 - [ ] `AI_WORKFLOW.md` completed
 - [ ] 2-3 minute demo recording
-- [ ] Repo mirrored to GitHub (no secrets in history)
+- [x] Repo mirrored to GitHub (no secrets in history)
 - [ ] Resume and LinkedIn updated with accurate bullets
 
 ## 6. Definition of done
