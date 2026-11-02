@@ -16,7 +16,7 @@ dependencies = [
 [project.optional-dependencies]
 # Snowflake connector for scripts/load_raw.py and scripts/snowflake_smoke.py
 snowflake = [
-    "snowflake-connector-python>=3.12",
+    "snowflake-connector-python>=5.1.0",
 ]
 dev = [
     "pytest>=9.1.1",
