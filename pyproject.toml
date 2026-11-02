@@ -23,7 +23,7 @@ dev = [
     "pytest-cov>=7.1.0",
     "responses>=0.25",
     "ruff>=0.6",
-    "pre-commit>=3.7",
+    "pre-commit>=4.7.0",
 ]
 
 [tool.setuptools.packages.find]
